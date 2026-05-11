@@ -13,9 +13,9 @@ const resolveBackendBaseUrl = () => {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { sid: string } }
+  { params }: { params: Promise<{ sid: string }> }
 ) {
-  const { sid } = params;
+  const { sid } = await params;
   if (!sid) return new Response("Recording SID required", { status: 400 });
 
   const backendBase = resolveBackendBaseUrl();
