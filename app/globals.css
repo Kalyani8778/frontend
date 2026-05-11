@@ -3008,7 +3008,7 @@ p {
 
 .analytics-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 14px;
 }
 
@@ -3188,6 +3188,33 @@ p {
 .dark .analytics-stat-card.dropped { background: rgba(239,68,68,0.06); }
 .dark .analytics-stat-card.ivr     { background: rgba(15,158,213,0.06); }
 .dark .analytics-stat-card.warn    { background: rgba(233,113,50,0.06); }
+.dark .analytics-stat-card.waiting { background: rgba(160,43,147,0.06); }
 .dark .analytics-card              { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
 .dark .analytics-donut-hole        { background: rgba(8,25,45,0.97); }
+
+/* Waiting stat card */
+.analytics-stat-card.waiting { border-color: rgba(160,43,147,0.4); background: rgba(160,43,147,0.09); }
+
+/* Waiting bar in status breakdown */
+.analytics-bar-fill.waiting-bar { background: linear-gradient(90deg, #a02b93, #d47fcb); }
+
+/* ── Queue waiting notice (transcript panel) ── */
+.queue-waiting-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 16px;
+  text-align: center;
+}
+.queue-waiting-icon {
+  font-size: 2rem;
+  animation: pulse-live 2.2s ease-in-out infinite;
+}
+.queue-waiting-notice p {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(247,251,255,0.65);
+}
 
