@@ -229,10 +229,10 @@ const PRIORITY_CFG: Record<string, { label: string; cls: string }> = {
 };
 
 const IVR_CATEGORY_CFG: Record<string, { label: string; key: string }> = {
-  billing:   { label: "Billing",             key: "Press 1" },
-  new_lines: { label: "New Lines & Services", key: "Press 2" },
-  service:   { label: "Service Support",      key: "Press 3" },
-  general:   { label: "General Support",      key: "Voice Input" },
+  billing:        { label: "Billing",         key: "Press 1" },
+  service:        { label: "Service Support", key: "Press 2" },
+  new_connection: { label: "New Connection",  key: "Press 3" },
+  general:        { label: "General",         key: "Press 4" },
 };
 
 const NAV_TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -262,6 +262,7 @@ export default function Dashboard() {
   const [activeCall, setActiveCall]         = useState<any>(null);
   const [isMuted, setIsMuted]               = useState(false);
   const deviceRef                           = useRef<any>(null);
+  const activeCallRef                       = useRef<any>(null);
   const kbFileInputRef                      = useRef<HTMLInputElement>(null);
   const selectedCallRef                     = useRef<string | null>(null);
   const fetchCallsRef                       = useRef<() => Promise<void>>(async () => {});
@@ -526,6 +527,7 @@ export default function Dashboard() {
 
   // Ref sync
   useEffect(() => { selectedCallRef.current = selectedCall; }, [selectedCall]);
+  useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
   useEffect(() => { fetchCallsRef.current = fetchCalls; });
   useEffect(() => { fetchMessagesRef.current = fetchMessages; });
   useEffect(() => { fetchSuggestionsRef.current = fetchSuggestions; });
@@ -642,6 +644,10 @@ export default function Dashboard() {
         const { Device } = await import("@twilio/voice-sdk");
         device = new Device(token, { logLevel: "error" });
         device.on("incoming", (call: any) => {
+          if (activeCallRef.current) {
+            call.reject();
+            return;
+          }
           call.accept();
           setCallStatus("connected");
           setActiveCall(call);
