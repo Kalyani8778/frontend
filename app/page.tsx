@@ -1250,13 +1250,17 @@ export default function Dashboard() {
                                   const pCfg = PRIORITY_CFG[s.priority] ?? PRIORITY_CFG.low;
                                   const isGreeting = s.intent === "call_greeting";
                                   const isClosing  = s.intent === "call_closing";
+                                  const isFarewell = s.intent === "call_farewell";
+                                  const isSpecial  = isGreeting || isClosing || isFarewell;
                                   const isLatest   = i === suggestions.length - 1;
                                   return (
-                                    <div key={s.id} className={`suggestion-card suggestion-animate${isGreeting ? " greeting-card" : ""}${isClosing ? " closing-card" : ""}`}>
+                                    <div key={s.id} className={`suggestion-card suggestion-animate${isGreeting ? " greeting-card" : ""}${isClosing ? " closing-card" : ""}${isFarewell ? " farewell-card" : ""}`}>
                                       {/* Header */}
                                       <div className="suggestion-card-header">
                                         {isClosing ? (
                                           <span className="closing-card-label">Closing Message</span>
+                                        ) : isFarewell ? (
+                                          <span className="farewell-card-label">Final Farewell</span>
                                         ) : (
                                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                             <span className="suggestion-num">#{i + 1}</span>
@@ -1269,9 +1273,9 @@ export default function Dashboard() {
 
                                       {/* Suggested reply — shown for every card */}
                                       {s.suggested_reply ? (
-                                        <div className={isClosing ? "closing-reply-card" : "suggested-reply-card"}>
+                                        <div className={isClosing ? "closing-reply-card" : isFarewell ? "farewell-reply-card" : "suggested-reply-card"}>
                                           <p className="reply-label">
-                                            {isClosing ? "🤝 Say to Customer" : isGreeting ? "💬 Opening Greeting" : "💬 Suggested Reply"}
+                                            {isClosing ? "🤝 Say to Customer" : isFarewell ? "👋 Say to Customer" : isGreeting ? "💬 Opening Greeting" : "💬 Suggested Reply"}
                                           </p>
                                           <p className="reply-text">{s.suggested_reply}</p>
                                         </div>
@@ -1282,7 +1286,7 @@ export default function Dashboard() {
                                       )}
 
                                       {/* Intent + actions — only for the most recent non-special suggestion */}
-                                      {isLatest && !isGreeting && !isClosing && (
+                                      {isLatest && !isSpecial && (
                                         <>
                                           <div className="intent-row">
                                             <span className="intent-label">Intent</span>
