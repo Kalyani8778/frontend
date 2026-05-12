@@ -360,12 +360,14 @@ export default function Dashboard() {
   // ── Data fetchers ───────────────────────────────────────────
   const fetchCalls = async () => {
     const { data, error } = await supabase
-      .from("calls").select("*").order("created_at", { ascending: false });
+      .from("calls")
+      .select("*")
+      .in("status", ["connected", "disconnected"])
+      .order("created_at", { ascending: false });
     if (error) console.error("fetchCalls:", error.message);
     const rows = data || [];
     setCalls(rows);
-    const newestVisible = rows.find((r) => r.status === "connected" || r.status === "disconnected");
-    const newestId = newestVisible?.id ?? null;
+    const newestId = rows[0]?.id ?? null;
     if (newestId && newestId !== latestCallIdRef.current) {
       latestCallIdRef.current = newestId;
       setSelectedCall(newestId);
@@ -758,11 +760,11 @@ export default function Dashboard() {
     dept === "General"           ? ["general"] :
     null; // null = show all (admin or department not yet loaded)
 
-  // Only show calls that have an agent connected or are completed.
-  // Calls still in IVR, ringing, or waiting in queue are hidden until the agent joins.
-  const visibleCalls = calls
-    .filter((c) => c.status === "connected" || c.status === "disconnected")
-    .filter((c) => !agentDeptCategories || !c.ivr_category || agentDeptCategories.includes(c.ivr_category));
+  // calls state already contains only connected/disconnected rows (filtered at query level).
+  // Apply department filter on top so each agent only sees their own category.
+  const visibleCalls = agentDeptCategories
+    ? calls.filter((c) => !c.ivr_category || agentDeptCategories.includes(c.ivr_category))
+    : calls;
 
   const selectedCallData  = calls.find((c) => c.id === selectedCall) || null;
 
