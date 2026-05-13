@@ -3,14 +3,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import { MaskedText }          from "./components/MaskedText";
-import { SecureBadge }         from "./components/SecureBadge";
-import { SecureNoteCard }      from "./components/SecureNoteCard";
-import { SessionTimeoutModal } from "./components/SessionTimeoutModal";
-import { AuditIndicator }      from "./components/AuditIndicator";
-
-// Departments that have access to secure notes
-const SECURE_NOTES_DEPTS = new Set(["Billing", "Technical Support", "Sales", "Customer Success"]);
 
 // ── Types ─────────────────────────────────────────────────────
 type Call = {
@@ -290,7 +282,6 @@ export default function Dashboard() {
   const [activeTab, setActiveTab]           = useState<TabId>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [darkMode, setDarkMode]             = useState(false);
-  const [sessionExpired, setSessionExpired] = useState(false);
   const [customerPanelTab, setCustomerPanelTab] = useState<"summary" | "agent-analysis" | "recordings">("summary");
 
   // Knowledge base
@@ -571,20 +562,6 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
-  // Session timeout — 30-minute inactivity triggers re-auth prompt
-  useEffect(() => {
-    const TIMEOUT_MS = 30 * 60 * 1000;
-    let timer = setTimeout(() => setSessionExpired(true), TIMEOUT_MS);
-    const reset = () => { clearTimeout(timer); timer = setTimeout(() => setSessionExpired(true), TIMEOUT_MS); };
-    window.addEventListener("mousemove", reset);
-    window.addEventListener("keydown",   reset);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("mousemove", reset);
-      window.removeEventListener("keydown",   reset);
-    };
-  }, []);
-
   // Realtime
   useEffect(() => {
     const ch = supabase.channel("agent-assist-realtime")
@@ -813,8 +790,6 @@ export default function Dashboard() {
   const resolvedTier  = selectedTier || normalizeText(customerProfile?.tier) || normalizeText(inferred?.tier);
   const isPlatinum    = resolvedTier?.toLowerCase() === "platinum";
   const resolvedYears = customerProfile?.years_as_customer ?? null;
-  const hasSecureAccess = agentProfile === null ||
-    (agentProfile.is_verified && SECURE_NOTES_DEPTS.has(agentProfile.department));
 
   const softphoneStatusLabel: Record<CallStatus, string> = {
     idle: "Agent Ready", ringing: "Connecting...", connected: "On Call", error: "Connection Error",
@@ -963,15 +938,6 @@ export default function Dashboard() {
                             </article>
                           );
                         })}
-                        {messages.length > 0 && (
-                          <div className="encrypted-storage-bar">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            Encrypted Storage Active
-                          </div>
-                        )}
                       </div>
                     )}
 
@@ -985,11 +951,7 @@ export default function Dashboard() {
                               {isPlatinum && <span className="tier-badge platinum">Platinum</span>}
                             </div>
                             <strong className="assist-customer-name">{resolvedName}</strong>
-                            <div className="secure-features-row">
-                              <SecureBadge />
-                              <AuditIndicator />
-                            </div>
-                            {resolvedPhone && <MaskedText value={resolvedPhone} type="phone" className="assist-customer-detail" />}
+                            {resolvedPhone && <span className="assist-customer-detail">{resolvedPhone}</span>}
                             {resolvedTier  && <span className="assist-customer-detail">Tier: {resolvedTier}</span>}
                             {resolvedYears != null && (
                               <span className="assist-customer-detail">
@@ -1309,16 +1271,14 @@ export default function Dashboard() {
                                         <span className="suggestion-time">{new Date(s.created_at).toLocaleTimeString()}</span>
                                       </div>
 
-                                      {/* Suggested reply — wrapped with SecureNoteCard for protected suggestions */}
+                                      {/* Suggested reply — shown for every card */}
                                       {s.suggested_reply ? (
-                                        <SecureNoteCard isProtected={!isSpecial}>
-                                          <div className={isClosing ? "closing-reply-card" : isFarewell ? "farewell-reply-card" : "suggested-reply-card"}>
-                                            <p className="reply-label">
-                                              {isClosing ? "🤝 Say to Customer" : isFarewell ? "👋 Say to Customer" : isGreeting ? "💬 Opening Greeting" : "💬 Suggested Reply"}
-                                            </p>
-                                            <p className="reply-text">{s.suggested_reply}</p>
-                                          </div>
-                                        </SecureNoteCard>
+                                        <div className={isClosing ? "closing-reply-card" : isFarewell ? "farewell-reply-card" : "suggested-reply-card"}>
+                                          <p className="reply-label">
+                                            {isClosing ? "🤝 Say to Customer" : isFarewell ? "👋 Say to Customer" : isGreeting ? "💬 Opening Greeting" : "💬 Suggested Reply"}
+                                          </p>
+                                          <p className="reply-text">{s.suggested_reply}</p>
+                                        </div>
                                       ) : (Date.now() - new Date(s.created_at).getTime() > 30_000) ? (
                                         <div className="reply-pending reply-unavailable">Reply unavailable</div>
                                       ) : (
@@ -1350,25 +1310,6 @@ export default function Dashboard() {
                                     </div>
                                   );
                                 })}
-                              </div>
-                            )}
-                            {/* Secure notes access indicator */}
-                            {hasSecureAccess ? (
-                              <div className="secure-notes-section-footer">
-                                <span className="encrypted-storage-bar-mini">
-                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                  </svg>
-                                  Encrypted Storage Active
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="unauthorized-access-notice">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </svg>
-                                <span>You do not have permission to access these secure notes.</span>
                               </div>
                             )}
                           </>
@@ -1448,7 +1389,7 @@ export default function Dashboard() {
                   </div>
                   <div className="customer-block">
                     <strong className="customer-name">{name || `Call ${call.id.slice(0, 8)}`}</strong>
-                    {phone && <MaskedText value={phone} type="phone" className="customer-phone" />}
+                    {phone && <span className="customer-phone">{phone}</span>}
                   </div>
                   <div className="call-card-meta">
                     <span className="call-time">{new Date(call.created_at).toLocaleString()}</span>
@@ -1722,13 +1663,6 @@ export default function Dashboard() {
         </div>
 
       </div>
-
-      {/* Session timeout modal — fires after 30 min inactivity; does not affect auth flow */}
-      <SessionTimeoutModal
-        visible={sessionExpired}
-        onDismiss={() => setSessionExpired(false)}
-        onReauth={() => { supabase.auth.signOut().then(() => router.push("/login")); }}
-      />
     </div>
   );
 }
