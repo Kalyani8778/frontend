@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
+import SecureNotesPanel from "./components/SecureNotesPanel";
+import type { SecureNote } from "./components/SecureNoteEntry";
 
 // ── Types ─────────────────────────────────────────────────────
 type Call = {
@@ -255,6 +257,7 @@ export default function Dashboard() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [recordings, setRecordings]         = useState<Recording[]>([]);
   const [recordingsLoading, setRecordingsLoading] = useState(false);
+  const [secureNotes, setSecureNotes]       = useState<SecureNote[]>([]);
   const [callQueryAddressed, setCallQueryAddressed] = useState<Record<string, boolean>>({});
 
   // Softphone
@@ -270,6 +273,7 @@ export default function Dashboard() {
   const fetchSuggestionsRef                 = useRef<(id: string) => Promise<void>>(async () => {});
   const fetchCallSummaryRef                 = useRef<(id: string) => Promise<void>>(async () => {});
   const fetchRecordingsRef                  = useRef<(id: string) => Promise<void>>(async () => {});
+  const fetchSecureNotesRef                 = useRef<(id: string) => Promise<void>>(async () => {});
   const latestCallIdRef                     = useRef<string | null>(null);
   const suggestionsListRef                  = useRef<HTMLDivElement>(null);
 
@@ -282,7 +286,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab]           = useState<TabId>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [darkMode, setDarkMode]             = useState(false);
-  const [customerPanelTab, setCustomerPanelTab] = useState<"summary" | "agent-analysis" | "recordings">("summary");
+  const [customerPanelTab, setCustomerPanelTab] = useState<"summary" | "agent-analysis" | "recordings" | "secure-notes">("summary");
 
   // Knowledge base
   const [kbText, setKbText]                 = useState("");
@@ -397,6 +401,16 @@ export default function Dashboard() {
     }
   };
 
+  const fetchSecureNotes = async (callId: string) => {
+    try {
+      const r = await fetch(`/api/secure-notes?call_id=${callId}`);
+      if (r.ok) {
+        const { notes } = await r.json();
+        setSecureNotes(notes || []);
+      }
+    } catch { /* non-critical */ }
+  };
+
   const fetchCallSummary = async (callId: string, force = false) => {
     setSummaryLoading(true);
     try {
@@ -443,11 +457,12 @@ export default function Dashboard() {
   }, [calls]);
 
   useEffect(() => {
-    if (!selectedCall) { setSuggestions([]); setMessages([]); setCallSummary(null); setRecordings([]); return; }
+    if (!selectedCall) { setSuggestions([]); setMessages([]); setCallSummary(null); setRecordings([]); setSecureNotes([]); return; }
     fetchMessages(selectedCall);
     fetchSuggestions(selectedCall);
     fetchCallSummary(selectedCall);
     fetchRecordings(selectedCall);
+    fetchSecureNotes(selectedCall);
   }, [selectedCall]);
 
   useEffect(() => {
@@ -536,6 +551,7 @@ export default function Dashboard() {
   useEffect(() => { fetchSuggestionsRef.current = fetchSuggestions; });
   useEffect(() => { fetchCallSummaryRef.current = fetchCallSummary; });
   useEffect(() => { fetchRecordingsRef.current = fetchRecordings; });
+  useEffect(() => { fetchSecureNotesRef.current = fetchSecureNotes; });
 
   // Re-fetch summary whenever a new analysis row arrives (new customer turn processed)
   useEffect(() => {
@@ -1013,19 +1029,20 @@ export default function Dashboard() {
 
                             {/* Customer panel sub-tabs */}
                             <div className="cust-panel-tabs">
-                              {(["summary", "agent-analysis", "recordings"] as const).map((tab) => (
+                              {(["summary", "agent-analysis", "recordings", "secure-notes"] as const).map((tab) => (
                                 <button
                                   key={tab}
                                   className={`cust-panel-tab${customerPanelTab === tab ? " active" : ""}`}
                                   onClick={() => setCustomerPanelTab(tab)}
                                 >
-                                  {tab === "summary" ? "Call Summary" : tab === "agent-analysis" ? "Agent Analysis" : "Recordings"}
+                                  {tab === "summary" ? "Call Summary" : tab === "agent-analysis" ? "Agent Analysis" : tab === "recordings" ? "Recordings" : "🔒 Notes"}
                                 </button>
                               ))}
                               <button
                                 className="summary-refresh-btn cust-tab-refresh"
                                 onClick={() => {
                                   if (customerPanelTab === "recordings") fetchRecordings(selectedCall!);
+                                  else if (customerPanelTab === "secure-notes") fetchSecureNotes(selectedCall!);
                                   else fetchCallSummary(selectedCall!, true);
                                 }}
                                 disabled={customerPanelTab === "recordings" ? recordingsLoading : summaryLoading}
@@ -1226,6 +1243,18 @@ export default function Dashboard() {
                                     ))}
                                   </div>
                                 )}
+                              </div>
+                            )}
+
+                            {/* ── Secure Notes tab ── */}
+                            {customerPanelTab === "secure-notes" && (
+                              <div className="cust-tab-body">
+                                <SecureNotesPanel
+                                  callId={selectedCall!}
+                                  agentId={agentProfile?.agent_id ?? null}
+                                  notes={secureNotes}
+                                  onNoteAdded={() => fetchSecureNotes(selectedCall!)}
+                                />
                               </div>
                             )}
                           </div>
