@@ -1512,16 +1512,6 @@ export default function Dashboard() {
                 </button>
               </div>
               {kbFileMsg && <p className={`kb-file-msg ${kbFileStatus}`}>{kbFileMsg}</p>}
-              <div className="kb-divider"><span>or paste text</span></div>
-              <form onSubmit={handleKbSubmit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <textarea className="kb-textarea" placeholder="Paste FAQs, policies, or product info..."
-                  value={kbText} onChange={(e) => setKbText(e.target.value)} rows={5} />
-                <input className="kb-source" placeholder="Source label (optional)"
-                  value={kbSource} onChange={(e) => setKbSource(e.target.value)} />
-                <button type="submit" className="kb-submit" disabled={kbStatus === "saving" || !kbText.trim()}>
-                  {kbStatus === "saving" ? "Saving..." : kbStatus === "done" ? "Saved ✓" : kbStatus === "error" ? "Failed" : "Add Text"}
-                </button>
-              </form>
             </div>
 
             {/* Right: entries viewer */}
