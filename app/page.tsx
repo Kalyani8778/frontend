@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import SecureNotesPanel from "./components/SecureNotesPanel";
@@ -298,6 +298,34 @@ export default function Dashboard() {
   const [kbEntries, setKbEntries]           = useState<KnowledgeEntry[]>([]);
   const [kbEntriesLoading, setKbEntriesLoading] = useState(false);
   const [kbEntriesError, setKbEntriesError] = useState<string | null>(null);
+  const [kbSearchQuery, setKbSearchQuery]   = useState("");
+
+  const filteredKbEntries = useMemo(() => {
+    const query = kbSearchQuery.trim().toLowerCase();
+    if (!query) return kbEntries;
+
+    return kbEntries.filter((entry) => {
+      return Object.entries(entry).some(([key, value]) => {
+        if (key === "embedding" || value == null) return false;
+        const keyMatch = key.toLowerCase().includes(query);
+
+        let valueText = "";
+        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+          valueText = String(value).toLowerCase();
+        } else if (Array.isArray(value)) {
+          valueText = value.map((v) => String(v ?? "")).join(" ").toLowerCase();
+        } else {
+          try {
+            valueText = JSON.stringify(value).toLowerCase();
+          } catch {
+            valueText = "";
+          }
+        }
+
+        return keyMatch || valueText.includes(query);
+      });
+    });
+  }, [kbEntries, kbSearchQuery]);
 
   // Dialpad
   const [dialpadNumber, setDialpadNumber]   = useState("");
@@ -1501,11 +1529,23 @@ export default function Dashboard() {
               <div className="kb-view-header">
                 <div>
                   <p className="eyebrow" style={{ color: "#87defe" }}>Stored Entries</p>
-                  <h2 className="kb-view-title">{kbEntries.length} {kbEntries.length === 1 ? "entry" : "entries"}</h2>
+                  <h2 className="kb-view-title">{filteredKbEntries.length} {filteredKbEntries.length === 1 ? "entry" : "entries"}</h2>
+                  {!!kbSearchQuery.trim() && (
+                    <p className="subtle-copy">Filtered from {kbEntries.length} total</p>
+                  )}
                 </div>
-                <button type="button" className="kb-view-refresh" onClick={fetchKbEntries} disabled={kbEntriesLoading}>
-                  {kbEntriesLoading ? "Loading..." : "Refresh"}
-                </button>
+                <div className="kb-view-tools">
+                  <input
+                    type="text"
+                    className="kb-search-input"
+                    placeholder="Search by name, invoice number, source..."
+                    value={kbSearchQuery}
+                    onChange={(e) => setKbSearchQuery(e.target.value)}
+                  />
+                  <button type="button" className="kb-view-refresh" onClick={fetchKbEntries} disabled={kbEntriesLoading}>
+                    {kbEntriesLoading ? "Loading..." : "Refresh"}
+                  </button>
+                </div>
               </div>
               <div className="kb-view-body">
                 {kbEntriesLoading && kbEntries.length === 0 && <div className="kb-view-empty">Loading entries...</div>}
@@ -1513,7 +1553,10 @@ export default function Dashboard() {
                 {!kbEntriesLoading && !kbEntriesError && kbEntries.length === 0 && (
                   <div className="kb-view-empty">No entries yet. Add some on the left.</div>
                 )}
-                {kbEntries.map((entry) => {
+                {!kbEntriesLoading && !kbEntriesError && kbEntries.length > 0 && filteredKbEntries.length === 0 && (
+                  <div className="kb-view-empty">No matching entries for your search.</div>
+                )}
+                {filteredKbEntries.map((entry) => {
                   const skip = new Set(["id", "embedding"]);
                   const fields = Object.entries(entry).filter(([k, v]) => !skip.has(k) && !Array.isArray(v));
                   const createdAt = entry.created_at as string | undefined;
