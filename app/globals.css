@@ -1473,6 +1473,33 @@ p {
   margin-top: 4px;
 }
 
+.kb-view-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kb-search-input {
+  width: 320px;
+  max-width: 45vw;
+  background: #fff;
+  border: 1px solid rgba(15, 158, 213, 0.28);
+  border-radius: 10px;
+  color: #12324f;
+  font-size: 0.86rem;
+  padding: 9px 12px;
+  outline: none;
+}
+
+.kb-search-input:focus {
+  border-color: #0f9ed5;
+  box-shadow: 0 0 0 3px rgba(15, 158, 213, 0.14);
+}
+
+.kb-search-input::placeholder {
+  color: rgba(18, 50, 79, 0.52);
+}
+
 .kb-view-refresh {
   background: linear-gradient(135deg, #156082, #0f9ed5);
   border: none;
@@ -2353,6 +2380,21 @@ p {
 
 .dark .kb-view-header .subtle-copy {
   color: rgba(135, 222, 254, 0.5);
+}
+
+.dark .kb-search-input {
+  background: rgba(19, 34, 52, 0.94);
+  border-color: rgba(135, 222, 254, 0.24);
+  color: #e2f3ff;
+}
+
+.dark .kb-search-input::placeholder {
+  color: rgba(135, 222, 254, 0.54);
+}
+
+.dark .kb-search-input:focus {
+  border-color: #47c4f1;
+  box-shadow: 0 0 0 3px rgba(71, 196, 241, 0.2);
 }
 
 .dark .kb-entry-card {
