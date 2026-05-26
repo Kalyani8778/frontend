@@ -281,6 +281,8 @@ export default function Dashboard() {
   const router = useRouter();
   const [agentName, setAgentName]       = useState<string | null>(null);
   const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null);
+  const [authLoading, setAuthLoading]   = useState(true);
+  const [authError, setAuthError]       = useState<string | null>(null);
 
   // UI
   const [activeTab, setActiveTab]           = useState<TabId>("dashboard");
@@ -352,36 +354,58 @@ export default function Dashboard() {
 
   // ── Agent auth session ───────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return;
-      const displayName =
-        session.user.user_metadata?.name ||
-        session.user.user_metadata?.full_name ||
-        session.user.email?.split("@")[0] ||
-        "Agent";
-      setAgentName(displayName);
+    (async () => {
+      try {
+        if (!supabase || !supabase.auth) {
+          throw new Error("Supabase client is not initialized");
+        }
 
-      const { data, error } = await supabase
-        .from("agents")
-        .select("name, email, department, agent_id, is_verified, created_at")
-        .eq("auth_user_id", session.user.id)
-        .single();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (error) console.warn("[profile] agents table lookup:", error.message);
+        if (sessionError) {
+          throw sessionError;
+        }
 
-      if (data) {
-        setAgentProfile(data as AgentProfile);
-      } else {
-        setAgentProfile({
-          name:        displayName,
-          email:       session.user.email || "",
-          department:  session.user.user_metadata?.department || "General",
-          agent_id:    session.user.id.slice(0, 8).toUpperCase(),
-          is_verified: !!session.user.email_confirmed_at,
-          created_at:  session.user.created_at || new Date().toISOString(),
-        });
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
+        const displayName =
+          session.user.user_metadata?.name ||
+          session.user.user_metadata?.full_name ||
+          session.user.email?.split("@")[0] ||
+          "Agent";
+        setAgentName(displayName);
+
+        const { data, error } = await supabase
+          .from("agents")
+          .select("name, email, department, agent_id, is_verified, created_at")
+          .eq("auth_user_id", session.user.id)
+          .single();
+
+        if (error) console.warn("[profile] agents table lookup:", error.message);
+
+        if (data) {
+          setAgentProfile(data as AgentProfile);
+        } else {
+          setAgentProfile({
+            name:        displayName,
+            email:       session.user.email || "",
+            department:  session.user.user_metadata?.department || "General",
+            agent_id:    session.user.id.slice(0, 8).toUpperCase(),
+            is_verified: !!session.user.email_confirmed_at,
+            created_at:  session.user.created_at || new Date().toISOString(),
+          });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Authentication failed";
+        console.error("[auth] getSession failed:", message);
+        setAuthError(message);
+      } finally {
+        setAuthLoading(false);
       }
-    });
+    })();
   }, []);
 
   async function handleLogout() {
@@ -840,6 +864,33 @@ export default function Dashboard() {
   };
 
   // ── Render ──────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "sans-serif", flexDirection: "column", gap: "12px" }}>
+        <div style={{ width: 36, height: 36, border: "3px solid #e5e7eb", borderTopColor: "#6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "#6b7280", fontSize: "14px", margin: 0 }}>Loading session…</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "sans-serif", flexDirection: "column", gap: "16px" }}>
+        <p style={{ color: "#ef4444", fontSize: "16px", fontWeight: 600, margin: 0 }}>Unable to connect</p>
+        <p style={{ color: "#6b7280", fontSize: "14px", margin: 0, maxWidth: 360, textAlign: "center" }}>
+          The authentication service could not be reached. Please check your connection and try again.
+        </p>
+        <button
+          onClick={() => router.push("/login")}
+          style={{ padding: "8px 20px", background: "#6366f1", color: "#fff", border: "none", borderRadius: "6px", fontSize: "14px", cursor: "pointer" }}
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={`app-root${darkMode ? " dark" : ""}`}>
 
